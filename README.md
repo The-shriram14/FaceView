@@ -2,107 +2,140 @@
 
 FaceView is a real-time computer-vision project that uses a webcam to estimate whether a face is oriented approximately forward, left, or right.
 
-The project includes a simple baseline approach and an updated pose-estimation approach.
+The project provides two approaches: a lightweight 2D baseline heuristic and an updated 3D head-pose estimation pipeline using MediaPipe Face Mesh and OpenCV.
+
+## Demo
+
+![FaceView head orientation detection](assets/faceview-demo.png)
+
+A live demonstration recording is available in [`demo/faceview-demo.mp4`](demo/faceview-demo.mp4).
 
 ## Features
 
-- Live webcam video
-- Facial landmark detection with MediaPipe Face Mesh
-- Face orientation labels: `Front Face`, `Left Side Face`, and `Right Side Face`
-- Estimated yaw, pitch, and roll values in the updated implementation
-- On-screen face landmarks, pose axes, and approximate FPS display
-- Press `q` to exit the webcam window
+- Real-time webcam video processing
+- 468-point facial landmark detection via MediaPipe Face Mesh
+- Face orientation classification: `Front Face`, `Left Side Face`, and `Right Side Face`
+- 3D pose estimation delivering approximate yaw, pitch, and roll angles in degrees
+- Visual HUD with real-time landmark mesh, projected 3D coordinate axes, orientation labels, and FPS display
+- Clean keyboard interaction (press `q` to exit)
 
-## Technologies
+## Technologies used
 
-- Python
-- OpenCV
-- MediaPipe
-- NumPy
+- Python 3.12
+- OpenCV (`cv2`)
+- MediaPipe (`mediapipe`)
+- NumPy (`numpy`)
 
-## Project files
-
-Place these files in the repository root:
+## Project structure
 
 ```text
 faceview-mediapipe/
+├── assets/
+│   └── faceview-demo.png
+├── demo/
+│   └── faceview-demo.mp4
 ├── main_updated.py
 ├── main_baseline.py
 ├── README.md
 ├── requirements.txt
-├── FaceView_Learning_Guide.pdf
-└── .gitignore
+├── .gitignore
+└── FaceView_Project_Documentation.pdf
 ```
 
-- `main_updated.py` — updated head-pose estimation implementation.
-- `main_baseline.py` — baseline 2D facial-symmetry approach.
-- `FaceView_Learning_Guide.pdf` — learning guide, basic-vs-updated comparison, pipeline explanation, and interview revision notes.
+- `main_updated.py` — Updated 3D head-pose estimation implementation.
+- `main_baseline.py` — Baseline 2D facial-symmetry heuristic.
+- `FaceView_Project_Documentation.pdf` — Comprehensive project documentation and learning guide.
+- `assets/faceview-demo.png` — Real-time demonstration screenshot showing pose estimation and HUD overlay.
+- `demo/faceview-demo.mp4` — Recorded demonstration video showing live webcam orientation tracking.
+- `requirements.txt` — Project dependencies (`opencv-python`, `mediapipe`, `numpy`).
+- `.gitignore` — Specifies files and folders excluded from version control (e.g., virtual environments, caches).
 
-## Setup (Windows PowerShell)
+## Installation and setup
 
-Run these commands from the repository folder:
+Clone the repository and set up a virtual environment (Windows PowerShell):
 
 ```powershell
+# Clone the repository
+git clone https://github.com/The-shriram14/FaceView.git
+cd FaceView
+
+# Create and activate a virtual environment
 py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\Activate.ps1
+
+# Upgrade pip and install dependencies
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
 ```
 
-## Run the updated version
+## How to run both versions
+
+Run only one script at a time, as both access the webcam.
+
+### Running the updated pose-estimation version
 
 ```powershell
 .\.venv\Scripts\python.exe -u main_updated.py
 ```
 
-## Run the baseline version
+### Running the baseline version
 
 ```powershell
 .\.venv\Scripts\python.exe main_baseline.py
 ```
 
-Run only one version at a time because both use the webcam. Press `q` in the OpenCV video window to close the application.
+Press `q` inside the OpenCV display window at any time to exit cleanly.
 
-## How it works
+## How the project works
 
-1. Capture a frame from the webcam.
-2. Convert the frame to the color format expected by MediaPipe.
-3. Detect facial landmarks.
-4. Match selected 2D facial landmarks with a generic 3D reference-face model.
-5. Use OpenCV `solvePnP` to estimate pose, then derive yaw, pitch, and roll.
-6. Use the yaw estimate and a threshold to classify the face as front-facing, left-facing, or right-facing.
-7. Display the annotated webcam feed and estimated values.
+The updated implementation follows a 7-step computer-vision pipeline:
 
-The baseline version instead compares horizontal eye-to-nose distances as a simple 2D symmetry heuristic. It distinguishes front/side, but does not estimate a 3D pose angle or separate the two side directions.
+1. **Frame Acquisition:** Capture raw video frames from the default webcam using OpenCV.
+2. **Color Conversion:** Convert frames from BGR to RGB format required by MediaPipe.
+3. **Landmark Detection:** Detect facial landmarks using MediaPipe Face Mesh.
+4. **2D-to-3D Landmark Matching:** Extract key 2D facial feature coordinates (nose tip, chin, left/right eye corners, left/right mouth corners) and pair them with corresponding points from a generic 3D reference head model.
+5. **Perspective-n-Point Pose Estimation:** Solve for the 3D rotation and translation vectors using OpenCV's `solvePnP`.
+6. **Euler Angle Extraction:** Convert the rotation vector into a rotation matrix and derive estimated yaw, pitch, and roll angles.
+7. **Orientation Classification and Rendering:** Classify the face as `Front Face`, `Left Side Face`, or `Right Side Face` based on the estimated yaw angle against a threshold, and render the annotated landmarks, 3D pose axes, angle readouts, and FPS onto the output frame.
+
+## Baseline versus updated implementation
+
+| Aspect | Baseline (`main_baseline.py`) | Updated (`main_updated.py`) |
+|---|---|---|
+| **Approach** | 2D geometric symmetry heuristic | 3D Perspective-n-Point (`solvePnP`) pose estimation |
+| **Landmark Usage** | Compares horizontal eye-to-nose Euclidean distances | Maps 2D landmarks to a canonical 3D reference head model |
+| **Output Categories** | Distinguishes `Front Face` vs. `Side Face` | Distinguishes `Front Face`, `Left Side Face`, and `Right Side Face` |
+| **Angle Estimation** | None (no angle measurements) | Estimates yaw, pitch, and roll in degrees |
+| **Visual HUD** | Orientation text overlay | Real-time landmark mesh, 3D coordinate axes, numerical angles, and FPS |
+| **Distinction** | Cannot differentiate left from right side orientation | Classifies left versus right using the sign of estimated yaw. |
 
 ## Limitations
 
-- The 3D reference face is generic rather than individually calibrated.
-- The camera matrix uses approximate intrinsic parameters; the camera has not been calibrated as part of this project.
-- Angle estimates can be affected by landmark quality, lighting, camera position, and model assumptions.
-- The yaw threshold is a chosen rule, not a trained orientation classifier.
-- Pitch and roll have not been comprehensively validated for accuracy. Treat all displayed angles as estimates, not ground-truth measurements.
+- **Generic 3D Head Model:** The 3D reference points represent a generic canonical face rather than an individually calibrated anatomical model.
+- **Approximate Camera Matrix:** Camera intrinsic parameters (focal length and principal point) are approximated from frame dimensions rather than formal checkerboard camera calibration.
+- **Angle Validation Scope:** Yaw estimates drive orientation classification effectively, but pitch and roll angles have not been comprehensively validated for ground-truth measurement accuracy.
+- **Heuristic Threshold:** Orientation labels are derived from a fixed yaw threshold rule rather than a machine-learned orientation classifier.
+- **Environmental Sensitivities:** Extreme lighting variations, severe face occlusions, or extreme tilt angles can affect facial landmark stability.
 
 ## Validation performed
 
-Manual webcam checks were performed for:
-- Looking approximately straight ahead
-- Turning the head left and right
-- Keeping the head approximately forward during an eyes-only movement check
-- Exiting with `q`
+Controlled manual webcam tests were conducted to verify functional correctness:
+- **Front-Facing Pose:** Confirmed correct `Front Face` classification when looking straight ahead.
+- **Left Head Turn:** Confirmed correct `Left Side Face` classification with expected yaw angle direction.
+- **Right Head Turn:** Confirmed correct `Right Side Face` classification with expected yaw angle direction.
+- **Eyes-Only Movement Check:** Confirmed that looking sideways with eyes while keeping the head forward maintained `Front Face`, verifying response to head orientation rather than gaze.
+- **Application Exit:** Confirmed prompt and clean resource cleanup upon pressing `q`.
 
-These are basic functional checks, not a formal accuracy benchmark or exhaustive failure-path test.
+*Note: These tests represent functional verification of expected behavior, not an exhaustive failure-mode benchmark or formal measurement accuracy study.*
 
-## Learning guide
+## Project Documentation
 
-See [`FaceView_Learning_Guide.pdf`](FaceView_Learning_Guide.pdf) for the detailed learning and interview guide.
+Read the [FaceView Project Documentation](FaceView_Project_Documentation.pdf) for the system workflow, baseline-versus-updated comparison, implementation concepts, limitations, and interview preparation notes.
 
 ## Future improvements
 
-- Calibrate the camera and validate angle estimates against a reference.
-- Test under different lighting, distances, and head poses.
-- Improve handling of camera errors and pose-estimation failures.
-- Measure accuracy and performance systematically.
-
-## License
-
-Add a license only when you have chosen the terms under which others may use or modify this project.
+- Implement formal camera calibration using a checkerboard target to obtain exact intrinsic parameters.
+- Benchmark angle estimates against ground-truth head-pose datasets (such as BIWI or AFLW2000-3D).
+- Expand orientation handling to include vertical tilt (pitch classification for looking up/down).
+- Introduce temporal smoothing (e.g., Kalman filter or moving average) to reduce landmark jitter in low-light environments.
+- Add robust automated error-handling routines for camera disconnects and edge-case landmark loss.
